@@ -29,7 +29,7 @@ class VocosGen(nn.Module):
         return audio
 
 
-def export_generator(config_path, checkpoint_path, output_dir):
+def export_generator(config_path, checkpoint_path, output_dir, format):
 
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
@@ -63,12 +63,16 @@ def export_generator(config_path, checkpoint_path, output_dir):
     model = model.eval()
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    export_filename = f"{Path(checkpoint_path).stem}.pt"
+    ext = "pt" if format == "sm" else "ckpt"
+    export_filename = f"{Path(checkpoint_path).stem}.{ext}"
     export_path = os.path.join(output_dir, export_filename)
 
-    args = (torch.rand(1, vocos.backbone.input_channels, 64),)
-    traced_script_module  = torch.jit.trace(model, args)
-    traced_script_module .save(export_path)
+    if format == "sm":
+        args = (torch.rand(1, vocos.backbone.input_channels, 64),)
+        traced_script_module  = torch.jit.trace(model, args)
+        traced_script_module .save(export_path)
+    else:
+        torch.save(model, export_path)
     return export_path
 
 
@@ -82,6 +86,13 @@ def main():
 
     parser.add_argument("-c", "--config", type=str, required=True)
     parser.add_argument("-i", "--ckpt", type=str, required=True)
+    formats = [
+        # Script module
+        "sm",
+        # Model checkpoint
+        "ckpt"
+    ]
+    parser.add_argument("--format", type=str, choices=formats, default="sm")
     parser.add_argument("-o", "--out-dir", type=str, required=True)
     parser.add_argument("--seed", type=int, default=1234, help="random seed")
 
@@ -101,6 +112,7 @@ def main():
         config_path=args.config,
         checkpoint_path=args.ckpt,
         output_dir=args.out_dir,
+        format=args.format
     )
     _LOGGER.info(f"Exported model to: `{export_path}`")
 
