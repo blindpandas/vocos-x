@@ -18,14 +18,15 @@ _LOGGER = logging.getLogger("export_torch_script")
 
 
 class VocosGen(nn.Module):
-    def __init__(self, vocos):
+    def __init__(self, backbone, head):
         super().__init__()
-        self.vocos = vocos
+        self.backbone = backbone
+        self.head = head
 
     def forward(self, mels):
-        x = self.vocos.backbone(mels)
-        audio_output = self.vocos.head(x)
-        return audio_output
+        x = self.backbone(mels)
+        audio = self.head(x)
+        return audio
 
 
 def export_generator(config_path, checkpoint_path, output_dir):
@@ -58,7 +59,7 @@ def export_generator(config_path, checkpoint_path, output_dir):
     vocos = vocos.eval()
     vocos._jit_is_scripting = True
 
-    model = VocosGen(vocos)
+    model = VocosGen(vocos.backbone, vocos.head)
     model = model.eval()
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
