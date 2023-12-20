@@ -44,22 +44,31 @@ def export_generator(config_path, checkpoint_path, output_dir, format):
     backbone = instantiate_class(args=(), init=params["backbone"])
     head = instantiate_class(args=(), init=params["head"])
 
-    vocos = vocos_cls.load_from_checkpoint(
-        checkpoint_path,
-        map_location="cpu",
-        feature_extractor=feature_extractor,
-        backbone=backbone,
-        head=head,
-        sample_rate=params["sample_rate"],
-        initial_learning_rate=params["initial_learning_rate"],
-        num_warmup_steps=params["num_warmup_steps"],
-        mel_loss_coeff=params["mel_loss_coeff"],
-        mrd_loss_coeff=params["mrd_loss_coeff"],
-    )
-    vocos = vocos.eval()
+    checkpoint = torch.load(checkpoint_path)
+    if isinstance(checkpoint, dict):
+        vocos = vocos_cls.load_from_checkpoint(
+            checkpoint_path,
+            map_location="cpu",
+            feature_extractor=feature_extractor,
+            backbone=backbone,
+            head=head,
+            sample_rate=params["sample_rate"],
+            initial_learning_rate=params["initial_learning_rate"],
+            num_warmup_steps=params["num_warmup_steps"],
+            mel_loss_coeff=params["mel_loss_coeff"],
+            mrd_loss_coeff=params["mrd_loss_coeff"],
+        )
+    else:
+        vocos = checkpoint
+    vocos = vocos.cpu().eval()
     vocos._jit_is_scripting = True
 
-    model = VocosGen(vocos.backbone, vocos.head)
+    # Reinitialize from state-dict to avoid copying unused components
+    exp_backbone = instantiate_class(args=(), init=params["backbone"])
+    exp_head = instantiate_class(args=(), init=params["head"])
+    exp_backbone.load_state_dict(vocos.backbone.state_dict()) 
+    exp_head.load_state_dict(vocos.head.state_dict())
+    model = VocosGen(exp_backbone, exp_head)
     model = model.eval()
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
