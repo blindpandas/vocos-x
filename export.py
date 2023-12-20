@@ -40,12 +40,11 @@ def export_generator(config_path, checkpoint_path, output_dir, format):
 
     params = config["model"]["init_args"]
 
-    feature_extractor = instantiate_class(args=(), init=params["feature_extractor"])
-    backbone = instantiate_class(args=(), init=params["backbone"])
-    head = instantiate_class(args=(), init=params["head"])
-
     checkpoint = torch.load(checkpoint_path)
     if isinstance(checkpoint, dict):
+        feature_extractor = instantiate_class(args=(), init=params["feature_extractor"])
+        backbone = instantiate_class(args=(), init=params["backbone"])
+        head = instantiate_class(args=(), init=params["head"])
         vocos = vocos_cls.load_from_checkpoint(
             checkpoint_path,
             map_location="cpu",
